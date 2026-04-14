@@ -15,8 +15,8 @@ you give to your own rating the less you give to the group rating
 
 Where:
 Weight of 0 = ignores own 1st rating
-Weight of 0.5 = the SBA, equal weight to own 1st rating and Grating
-Weight of 1 = ignores Grating
+Weight of 0.5 = equal weight to own 1st rating and Grating
+Weight of 1 = ignores group rating
 
 ```{r}
 ### Setting up all the variables ####
@@ -55,10 +55,12 @@ for (i in 1:length(first_rating)) {
   alpha_post <- 0.5 + p * first_rating[i] + (1 - p) * group_rating[i] #The evidence for a high rating
   beta_post  <- 0.5 + p * (7 - first_rating[i]) + (1 - p) * (7 - group_rating[i]) #The evidence for a low rating
 
-  prob_rating[i] <- alpha_post / (alpha_post + beta_post) #The agent's average belief about how likely a high rating is.
-
-  second_rating[i] <- rbinom(1, size = 7, prob = prob_rating[i]) #scale back to 0-7
+  prob_rating[i] <- rbeta(1,alpha_post, beta_post)
+  
+  second_rating[i] <- rbinom(1,7,prob_rating[i])
 }
+
+
 ```
 
 ```{r}
@@ -74,4 +76,7 @@ write.csv(df, "PBA_simdata.csv", row.names = FALSE)
 
 ```
 
+```{r}
+plot(jitter(df$group_rating), jitter(df$second_rating))
+```
 
