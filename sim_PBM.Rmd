@@ -1,0 +1,77 @@
+---
+title: "sim_PBM"
+output: html_document
+---
+
+```{r}
+pacman::p_load(tidyverse)
+```
+
+
+Set up a proportional bayesian agent 
+
+We assume a zero-sum attentional budget: the more weight
+you give to your own rating the less you give to the group rating
+
+Where:
+Weight of 0 = ignores own 1st rating
+Weight of 0.5 = the SBA, equal weight to own 1st rating and Grating
+Weight of 1 = ignores Grating
+
+```{r}
+### Setting up all the variables ####
+
+second_rating <- c() #outcome variable
+
+first_rating <- sample(0:7, 158, replace = TRUE) #Sampling 158 random values between 0-7
+group_rating <- integer(length(first_rating)) #Defining group_rating so its ready for the loop
+
+condition <- sample(rep(1:3, length.out = length(first_rating))) #Sampling 158 conditions equally divided between 1-3
+
+#For loop that depending on the condition assigns values to group_rating, according to what they did in the original paper
+for (i in 1:length(first_rating)) {
+  if (condition[i] == 1) {
+    group_rating[i] <- first_rating[i] #Equal to first rating
+  } else if (condition[i] == 2) {
+    group_rating[i] <- first_rating[i] - sample(2:3, 1) #Lower than first rating
+  } else {
+    group_rating[i] <- first_rating[i] + sample(2:3, 1) #higher than first rating
+  }
+  
+  group_rating[i] <- as.integer(max(0, min(7, group_rating[i]))) #Make sure its between 0-7
+}
+
+p = 0.7 # Setting the weight to be slightly more trusting in ones own 1st rating
+
+prob_rating <- c() #probability of rating
+
+
+```
+
+```{r}
+### Simulate second_rating behavior ###
+
+for (i in 1:length(first_rating)) {
+  alpha_post <- 0.5 + p * first_rating[i] + (1 - p) * group_rating[i] #The evidence for a high rating
+  beta_post  <- 0.5 + p * (7 - first_rating[i]) + (1 - p) * (7 - group_rating[i]) #The evidence for a low rating
+
+  prob_rating[i] <- alpha_post / (alpha_post + beta_post) #The agent's average belief about how likely a high rating is.
+
+  second_rating[i] <- rbinom(1, size = 7, prob = prob_rating[i]) #scale back to 0-7
+}
+```
+
+```{r}
+### Create df and save to csv ###
+df <- data.frame(
+  first_rating = first_rating,
+  group_rating = group_rating,
+  second_rating = second_rating,
+  prob_rating = prob_rating
+)
+
+write.csv(df, "PBA_simdata.csv", row.names = FALSE)
+
+```
+
+
