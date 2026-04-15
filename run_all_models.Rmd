@@ -1,0 +1,23 @@
+---
+title: "run_all_models"
+output: html_document
+---
+
+
+```{r}
+stan_models <- c("WBA_model.stan", "PBA_model.stan")
+datasets    <- c("sim_data_1.csv", "sim_data_2.csv", "sim_data_3.csv", "sim_data_4.csv")
+
+for (stan_file_name in stan_models) {
+  for (data_name in datasets) {
+    
+    # Auto-generate a fitted model name from the two input names
+    model_prefix <- tools::file_path_sans_ext(stan_file_name)
+    data_prefix  <- tools::file_path_sans_ext(data_name)
+    fitted_model_name <- paste0(model_prefix, "_", data_prefix, ".rds")
+    
+    source("fitting_script.R")
+  }
+}
+```
+
