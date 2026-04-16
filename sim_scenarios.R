@@ -82,11 +82,21 @@ for (scenario in scenarios) {
   if (sum(is.na.data.frame(choice_df)) > 0) {
     cat("NAs in dataframe for sceneario", scenario_name)}
   
+  #make sub folder to store it in
+  sub_folder = paste0(out_dir, "/", scenario_name)
+  
+  if (!dir.exists(sub_folder)) {
+    dir.create(sub_folder)
+  }
+  
   #construct file name
   csv_file_name <- paste0(
-    out_dir, "/",
-    "scenario_", scenario_name,
+    sub_folder, "/",
+    "scenario_", 
+    scenario_name,
     ".csv")
+  
+  print(sub_folder)
   
   #save
   write_csv(choice_df, csv_file_name)
@@ -105,11 +115,22 @@ choice_df <- evidence_df %>%
 if (sum(is.na.data.frame(choice_df)) > 0) {
   cat("NAs in dataframe for sceneario", sceneario_name)}
 
+
+#make sub folder to store it in
+sub_folder = paste0(out_dir, "/", scenario_name)
+
+if (!dir.exists(sub_folder)) {
+  dir.create(sub_folder)
+}
+
 #construct file name
 csv_file_name <- paste0(
-  out_dir, "/",
-  "scenario_", scenario_name,
+  sub_folder, "/",
+  "scenario_", 
+  scenario_name,
   ".csv")
+
 
 #save
 write_csv(choice_df, csv_file_name)
+
