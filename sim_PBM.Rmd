@@ -108,10 +108,10 @@ WBA_agent <- function(w_direct, w_social, first_rating, group_rating){
   beta  = 0.5 + w_direct * (7-first_rating) + w_social * (7-group_rating)
 
   #draw a rate
-  rate <- rbeta(length(alpha), alpha, beta)
+  rate <- rbeta(n, alpha, beta)
   
   #turn rate into a choice
-  choice <- rbinom(length(alpha), size=7, rate)
+  choice <- rbinom(n, size=7, rate)
 
   choice
 }
@@ -121,6 +121,7 @@ WBA_agent <- function(w_direct, w_social, first_rating, group_rating){
 
 ## scenario config
 ```{r}
+source("sim_1st_and_group_rating.R")
 
 n_trials = 100 #** 
 weight_direct = 1
@@ -131,6 +132,12 @@ first_and_group_df <- read_csv("1st_and_group_ratings.csv")
 
 test_data <- first_and_group_df %>% 
   mutate(second_rating = WBA_agent(1, 0.5, first_ratings, group_ratings)) 
+
+num_nas <- sum(is.na.data.frame(test_data))
+
+if (num_nas > 0) {
+  print("NAs in dataframe")
+}
 
 write_csv(test_data, "test_data_wba_wd1_w05.csv")
 ```
