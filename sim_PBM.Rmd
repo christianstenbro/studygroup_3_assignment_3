@@ -76,7 +76,63 @@ write.csv(df, "PBA_simdata.csv", row.names = FALSE)
 
 ```
 
+## refactor as function
 ```{r}
-plot(jitter(df$group_rating), jitter(df$second_rating))
+# Generate a second rating given a first rating, second rating and weights
+WBA_agent <- function(w_direct, w_social, first_rating, group_rating){
+  
+  #get alpha
+  alpha = 0.5 + w_direct * first_rating + w_social * group_rating
+  
+  #get beta
+  beta = 0.5 + w_direct * (7-first_rating) + w_social * (7 - group_rating) 
+  
+  #draw a rate
+  rate <- rbeta(n=1, alpha, beta)
+  
+  #feed to binom
+  choice <- rbinom(n=1, size=7, rate)
+  
+  list(choice = choice)
+  
+}
+
+#vectorized so it can be used 
+WBA_agent <- function(w_direct, w_social, first_rating, group_rating){
+  
+  #get length for determining number of draws alter
+  n <- length(first_rating)
+
+  #calc alpha and beta values to feed to beta dist 
+  alpha = 0.5 + w_direct * first_rating + w_social * group_rating
+  beta  = 0.5 + w_direct * (7-first_rating) + w_social * (7-group_rating)
+
+  #draw a rate
+  rate <- rbeta(length(alpha), alpha, beta)
+  
+  #turn rate into a choice
+  choice <- rbinom(length(alpha), size=7, rate)
+
+  choice
+}
+
+
 ```
+
+## scenario config
+```{r}
+
+n_trials = 100 #** 
+weight_direct = 1
+weight_social = 1
+
+#read in 1st and group ratings
+first_and_group_df <- read_csv("1st_and_group_ratings.csv")
+
+test_data <- first_and_group_df %>% 
+  mutate(second_rating = WBA_agent(1, 0.5, first_ratings, group_ratings)) 
+
+write_csv(test_data, "test_data_wba_wd1_w05.csv")
+```
+
 
