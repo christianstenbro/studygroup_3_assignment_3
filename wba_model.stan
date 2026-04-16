@@ -19,8 +19,8 @@ data {
   array[N] int<lower=0> first_rating;
   array[N] int<lower=0> total;
   array[N] int<lower=0> group_rating;
-  array[N] real prior_mu;
-  array[N] real<lower=0> prior_sigma;
+  real prior_mu;
+  real<lower=0> prior_sigma;
     
 }
 
