@@ -1,7 +1,3 @@
----
-title: "fitting_script"
-output: html_document
----
 
 # Load packages and data
 pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
@@ -31,9 +27,12 @@ model <- cmdstan_model(stan_file,
 # Sample from the posterior distribution using MCMC
 fit <- model$sample(
   data = list(N = nrow(data_raw), 
-                    first_rating = data_raw$first_rating, 
-                    group_rating = data_raw$group_rating,
-                    total = 7),      
+                    first_rating = data_raw$first_ratings, 
+                    group_rating = data_raw$group_ratings,
+                    second_rating = data_raw$second_rating,
+                    prior_mu = 0,
+                    prior_sigma = 0.5,
+                    total = rep(7, nrow(data_raw))),      
   seed = 123,                    # For reproducible MCMC sampling
   chains = 4,                    # Number of parallel Markov chains (recommend 4)
   parallel_chains = 4, # Run chains in parallel
