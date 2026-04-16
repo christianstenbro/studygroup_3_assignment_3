@@ -80,7 +80,7 @@ for (scenario in scenarios) {
   
   #check if NAs were produced
   if (sum(is.na.data.frame(choice_df)) > 0) {
-    cat("NAs in dataframe for sceneario", sceneario_name)}
+    cat("NAs in dataframe for sceneario", scenario_name)}
   
   #construct file name
   csv_file_name <- paste0(
