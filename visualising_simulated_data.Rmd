@@ -1,0 +1,53 @@
+---
+title: "visualising_simulated_data"
+output: html_document
+---
+```{r}
+pacman::p_load(here, tidyverse, ggplot2, patchwork)
+```
+
+```{r}
+df <- read_csv("test_data_wba_wd1_w05.csv")
+```
+
+```{r}
+p1 <- ggplot(df, aes(x = first_ratings, y = second_rating)) +
+  geom_jitter(width = 0.2, height = 0.2, alpha = 0.5, color = "#534AB7") +
+  scale_x_continuous(breaks = 1:8) +
+  scale_y_continuous(breaks = 1:8) +
+  labs(x = "first rating", y = "second rating") +
+  theme_minimal()
+
+p2 <- ggplot(df, aes(x = group_ratings, y = second_rating)) +
+  geom_jitter(width = 0.2, height = 0.2, alpha = 0.5, color = "#534AB7") +
+  scale_x_continuous(breaks = 1:8) +
+  scale_y_continuous(breaks = 1:8) +
+  labs(x = "group rating", y = "second rating") +
+  theme_minimal()
+
+p3 <- ggplot(df, aes(x = second_rating)) +
+  geom_histogram(binwidth = 1, fill = "#534AB7", alpha = 0.6, color = "white") +
+  scale_x_continuous(breaks = 1:8) +
+  labs(x = "second rating", y = "count") +
+  theme_minimal()
+
+```
+
+```{r}
+(p1 | p2) / p3
+```
+
+```{r}
+df %>%
+  mutate(group_ratings = factor(group_ratings)) %>%
+  ggplot(aes(x = first_ratings, y = second_rating, color = group_ratings, fill = group_ratings)) +
+  geom_smooth(method = "lm", alpha = 0.15, se = TRUE) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  scale_x_continuous(breaks = 1:8) +
+  scale_y_continuous(breaks = 1:8) +
+  labs(x = "first rating", y = "second rating",
+       color = "group rating", fill = "group rating") +
+  theme_minimal()
+```
+
