@@ -1,0 +1,58 @@
+---
+title: "wba"
+author: "Christian Stenbro"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# write up of the task we are simulating
+
+The goal of this script is to make a simulated agent that mimics human behaviour in the social conformity experimental task. The task is described in Simonsen et al. (2019).
+
+The task proceeds in two rounds. In the first, participants are asked to rate the trustworthiness of the people depicted in *153* face images. The ratings are given on a scale from 1 (not trustworthy at all) to 8 (very trustworthy).
+
+After rating each image, participants are shown a score communicating a (made up) 'group' rating of trustworthiness for the given image. Upon rating all images, participants take a 1 hour break before the second round, in which they have to rate the same images. 
+
+The goal of the experiment is to assess to which extent participants second rate is swayed by the group rating.
+
+Regarding the made up group ratings, the author's write the following: "In order to provide an adequate number of trials in each condition, and minimize the number of participants required in the study, others’ ratings were generated pseudo-randomly by the computer with the following cri- teria: in approximately 1/3 of the trials, these ratings agreed with the participant’s rating, in approximately 1/3 ratings were two or three points lower than the participant’s, and in approximately 1/3 ratings were two or three points higher."
+
+*References*
+Simonsen, A., Fusaroli, R., Skewes, J. C., Roepstorff, A., Mors, O., Bliksted, V., & Campbell-Meiklejohn, D. (2019). Socially Learned Attitude Change is not reduced in Medicated Patients with Schizophrenia. Scientific Reports, 9(1), 992. https://doi.org/10.1038/s41598-018-37250-x
+
+# setting up a weighted bayesian agent
+
+I am thinking about using the following:
+
+```{r}
+posterior = Beta(
+  alpha_0 + w_1 * k_1 + w_2 * k_2,
+  beta_0 + w_1 * (n-1 - k_1) + w_2 * (n_2 - k_2)
+)
+
+# exactly what was k and w? w are weights. And k is, probably the first rating (?) and the group rating (?) --> though non of these are remembered consciously, so I wonder how well this would actually fit the data? Would it make sense to include some noise here?
+```
+
+Understanding the variables:
+
+k_1 = own rating from round 1 or *direct evidence*
+k_2 = group rating or *social evidence*
+
+I do wonder if it makes sense to call k_1 direct evidence? It is almost more like the prior belief..?
+
+First, I will set up some placeholder input variable vectors:
+
+```{r}
+rounds <- 10
+
+round_1_rating <- as.integer(runif(rounds, 1, 8))
+group_rating <- as.integer(runif(rounds, 1, 8))
+```
+
+We want an agent to generate new ratings based on these inputs, weighing them (?) against each other.
+
+
