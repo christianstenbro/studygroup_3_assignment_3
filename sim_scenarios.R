@@ -1,4 +1,6 @@
 ## agents
+library(tidyverse)
+
 #setup WBA
 WBA_agent <- function(w_direct, w_social, first_rating, group_rating){
   
