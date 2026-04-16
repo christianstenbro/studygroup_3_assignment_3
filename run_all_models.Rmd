@@ -5,8 +5,11 @@ output: html_document
 
 
 ```{r}
-stan_models <- c("WBA_model.stan", "PBA_model.stan")
-datasets    <- c("sim_data_1.csv", "sim_data_2.csv", "sim_data_3.csv", "sim_data_4.csv")
+#stan_models <- c("WBA_model.stan", "PBA_model.stan")
+#datasets    <- c("sim_data_1.csv", "sim_data_2.csv", "sim_data_3.csv", "sim_data_4.csv")
+
+stan_models <- c("wba_model.stan")
+datasets    <- c("test_data_wba_wd1_ws05.csv")
 
 for (stan_file_name in stan_models) {
   for (data_name in datasets) {
