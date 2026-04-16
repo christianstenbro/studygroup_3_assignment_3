@@ -40,6 +40,7 @@ PBA_agent <- function(p, first_rating, group_rating){
 }
 
 ## simulate scenarios
+set.seed(1)
 
 scenarios = list(
   list(name = "1", w1 = 1, w2 = 1), 
