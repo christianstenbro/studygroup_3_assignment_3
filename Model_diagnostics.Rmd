@@ -2,32 +2,68 @@
 title: "Model_diagnostics"
 output: html_document
 ---
-
 ```{r}
 pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
 ```
 
 ```{r}
-fit <- readRDS(here("fitted_models", "wba_model_test_data_wba_wd1_ws05.rds"))
+#Make list of files to loop through
+
+
+wba_fits <- list.files(
+  here("scenario_data"),
+  pattern = "^wba_model.*\\.rds$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
+pba_fits <- list.files(
+  here("scenario_data"),
+  pattern = "^pba_model.*\\.rds$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+
 ```
 
-
 ```{r}
-fit$diagnostic_summary()
-
-mcmc_trace(fit$draws(), pars = "w_first")
-mcmc_trace(fit$draws(), pars = "w_group")
-
-
+for (file in wba_fits) {
+  
+  fit <- readRDS(file)
+  
+  # Diagnostics summary
+  print(fit$diagnostic_summary())
+  
+  # Trace plots
+  print(mcmc_trace(fit$draws(), pars = "w_first"))
+  print(mcmc_trace(fit$draws(), pars = "w_group"))
+  
+  # Rank plots
+  print(mcmc_rank_overlay(fit$draws(), pars = "w_first"))
+  print(mcmc_rank_overlay(fit$draws(), pars = "w_group"))
+  
+  # Summary table
+  fit_summary <- fit$summary(variables = c("w_first", "w_group"))
+  print(fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail))
+}
 ```
 
 ```{r}
-mcmc_rank_overlay(fit$draws(), pars = "w_first")
-mcmc_rank_overlay(fit$draws(), pars = "w_group")
-```
+for (file in pba_fits) {
+  
+  fit <- readRDS(file)
+  
+  # Diagnostics summary
+  print(fit$diagnostic_summary())
+  
+  # Trace plots
+  print(mcmc_trace(fit$draws(), pars = "p"))
 
-```{r}
-# 2. Check R-hat and ESS metrics
-fit_summary <- fit$summary(variables = c("w_first", "w_group"))
-fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail)
+  # Rank plots
+  print(mcmc_rank_overlay(fit$draws(), pars = "p"))
+  
+  # Summary table
+  fit_summary <- fit$summary(variables = c("p"))
+  print(fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail))
+}
 ```
