@@ -46,7 +46,7 @@ p1 <- ggplot(scenarios_long, aes(x = first_ratings, y = second_rating, color = f
   labs(x = "first rating", y = "second rating") +
   
   #theme
-  theme_minimal() +
+  theme_minimal() + 
   
   #facet by weights
   facet_wrap(~weights)
