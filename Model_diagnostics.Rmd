@@ -27,6 +27,8 @@ pba_fits <- list.files(
 ```
 
 ```{r}
+i <- 1
+
 for (file in wba_fits) {
   
   fit <- readRDS(file)
@@ -35,16 +37,19 @@ for (file in wba_fits) {
   print(fit$diagnostic_summary())
   
   # Trace plots
-  print(mcmc_trace(fit$draws(), pars = "w_first"))
-  print(mcmc_trace(fit$draws(), pars = "w_group"))
+  print(mcmc_trace(fit$draws(), pars = "kappa"))
+  print(mcmc_trace(fit$draws(), pars = "rho"))
   
   # Rank plots
-  print(mcmc_rank_overlay(fit$draws(), pars = "w_first"))
-  print(mcmc_rank_overlay(fit$draws(), pars = "w_group"))
+  print(mcmc_rank_overlay(fit$draws(), pars = "kappa"))
+  print(mcmc_rank_overlay(fit$draws(), pars = "rho"))
   
-  # Summary table
-  fit_summary <- fit$summary(variables = c("w_first", "w_group"))
-  print(fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail))
+  # Summary table (saved separately)
+  fit_summary <- fit$summary(c("kappa", "rho"))
+  
+  assign(paste0("wba_summary_", i), fit_summary, envir = .GlobalEnv)
+  
+  i <- i + 1
 }
 ```
 
@@ -67,3 +72,7 @@ for (file in pba_fits) {
   print(fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail))
 }
 ```
+```{r}
+fit$summary()
+```
+
