@@ -3,14 +3,14 @@
 pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
 
 # import simulation data
-data_raw <- read_csv(data_name)
+data_raw <- read_csv(here(data_name))
 
 # Specify model file path
 stan_file <- here(stan_file_name)
 
 # Define path for saving fitted model object
 stan_results_dir <- "fitted_models"
-model_file <- here(stan_results_dir, fitted_model_name)
+model_file <- here(output_dir, fitted_model_name)
 
 if (!dir.exists(here(stan_results_dir))) {
   dir.create(here(stan_results_dir), recursive = TRUE)

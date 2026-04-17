@@ -5,16 +5,21 @@ output: html_document
 
 
 ```{r}
-stan_models <- c("wba_model.stan")
-datasets    <- c("test_data_wba_wd1_ws05.csv")
+stan_models <- c("wba_model.stan", "pba_model.stan")
+scenarios   <- as.character(1:3)
 
 for (stan_file_name in stan_models) {
-  for (data_name in datasets) {
+  for (scenario in scenarios) {
     
-    # Auto-generate a fitted model name from the two input names
+    # Build path to data
+    data_name <- file.path("scenario_data", scenario, paste0("scenario_", scenario, ".csv"))
+    
+    # Output folder = same scenario folder
+    output_dir <- file.path("scenario_data", scenario)
+    
+    # Model filename
     model_prefix <- tools::file_path_sans_ext(stan_file_name)
-    data_prefix <- tools::file_path_sans_ext(data_name)
-    fitted_model_name <- paste0(model_prefix, "_", data_prefix, ".rds")
+    fitted_model_name <- paste0(model_prefix, "_scenario_", scenario, ".rds")
     
     source("fitting_script.R")
   }
