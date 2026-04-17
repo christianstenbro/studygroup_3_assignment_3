@@ -35,13 +35,14 @@ for (scenario in scenario_folders) {
     #read in fit
     fit <- readRDS(model_file)
     
+    cat(model_file, "\n")
+    
     #make loo
     loo_obj <- fit$loo()
     
     #assign to correct var name
     if (str_detect(model_file, "pba")){
       pba_loo <- loo_obj
-      print(model_file)
     } else{
       wba_loo <- loo_obj
     }
@@ -72,6 +73,16 @@ for (scenario in scenario_folders) {
 
 ```{r}
 
-model_comparison_list
+pba_fit <- readRDS("scenario_data/3/pba_model_scenario_3.rds")
+ 
+
+log_lik_df <- pba_fit$summary(variables = "log_lik")
+
+log_lik_df$trial_num <- c(1:nrow(log_lik_df))
 ```
+
+```{r}
+hist(log_lik_df$mean)
+```
+
 
