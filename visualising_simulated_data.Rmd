@@ -8,54 +8,49 @@ pacman::p_load(here, tidyverse, ggplot2, patchwork)
 ```
 
 ```{r}
-df <- read_csv("test_data_wba_wd1_w05.csv")
+
+#get all csvs
+files <- list.files(
+  path = "scenario_data/",
+  pattern = "\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+#make longformat for plotting
+scenarios_long <- map_dfr(files, read_csv, .id = "file")
+
+
 ```
 
-```{r}
-df <- df %>% 
-  mutate(feedback = group_ratings - first_ratings)
 
-p1 <- ggplot(df, aes(x = first_ratings, y = second_rating, color = feedback)) +
-  geom_jitter(width = 0.2, height = 0.2, alpha = 0.8) +
+```{r}
+#make a new column with difference from first rating to group rating
+scenarios_long <- scenarios_long %>% 
+  mutate(feedback = group_ratings - first_ratings,
+         weights = paste0("w1: ", w_first, "    ", "w2: ", w_group))
+
+#make plots
+p1 <- ggplot(scenarios_long, aes(x = first_ratings, y = second_rating, color = feedback)) +
+  
+  #make jittered points
+  geom_jitter(width = 0.2, height = 0.2, alpha = 0.5) +
+  
+  #make heat mapping of points based on feedback
   scale_color_continuous(high = "red", low = "blue") +
+  
+  #draw line of x=y
   geom_abline(linetype = "dashed", alpha = .5) +
-  scale_x_continuous(breaks = 1:8) +
-  scale_y_continuous(breaks = 1:8) +
+  
+  #make labs
   labs(x = "first rating", y = "second rating") +
-  theme_minimal()
+  
+  #theme
+  theme_minimal() +
+  
+  #facet by weights
+  facet_wrap(~weights)
 
-p2 <- ggplot(df, aes(x = group_ratings, y = second_rating)) +
-  geom_jitter(width = 0.2, height = 0.2, alpha = 0.5, color = "#534AB7") +
-  scale_x_continuous(breaks = 1:8) +
-  scale_y_continuous(breaks = 1:8) +
-  labs(x = "group rating", y = "second rating") +
-  theme_minimal()
-
-p3 <- ggplot(df, aes(x = second_rating)) +
-  geom_histogram(binwidth = 1, fill = "#534AB7", alpha = 0.6, color = "white") +
-  scale_x_continuous(breaks = 1:8) +
-  labs(x = "second rating", y = "count") +
-  theme_minimal()
-
-p1
-
-```
-
-```{r}
+#call plot
 p1
 ```
-
-```{r}
-df %>%
-  mutate(group_ratings = factor(group_ratings)) %>%
-  ggplot(aes(x = first_ratings, y = second_rating, color = group_ratings, fill = group_ratings)) +
-  geom_smooth(method = "lm", alpha = 0.15, se = TRUE) +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
-  scale_x_continuous(breaks = 1:8) +
-  scale_y_continuous(breaks = 1:8) +
-  labs(x = "first rating", y = "second rating",
-       color = "group rating", fill = "group rating") +
-  theme_minimal()
-```
-
