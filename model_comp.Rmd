@@ -1,0 +1,77 @@
+---
+title: "model_comp"
+output: html_document
+---
+
+```{r}
+pacman::p_load(cmdstanr, tidyverse, tidybayes, loo)
+```
+
+
+```{r}
+scenario_folders <- list.files("scenario_data", full.names = T)
+
+scenario_counter = 1
+#loop through scenarios
+
+#setup empty output list
+model_comparison_list <- list()
+
+#loop through each scenario folder
+for (scenario in scenario_folders) {
+  
+  #get scenario data
+  data_file = list.files(scenario, full.names = T, pattern = "*.csv")
+  
+  #get models
+  rds_files <- list.files(scenario, full.names = T, pattern = "*.rds")
+  
+  
+  loo_objects = list()
+  
+    #compute loo for each model
+  for (model_file in rds_files) {
+
+    #read in fit
+    fit <- readRDS(model_file)
+    
+    #make loo
+    loo_obj <- fit$loo()
+    
+    #assign to correct var name
+    if (str_detect(model_file, "pba")){
+      pba_loo <- loo_obj
+      print(model_file)
+    } else{
+      wba_loo <- loo_obj
+    }
+    
+  }
+  #put objects into named list. Important for naming output in loo_compare. Then compare
+  loo_list = list(PBA = pba_loo,
+                WBA = wba_loo)
+  
+  #make loo comparison and get model weights
+  loo_comparison <- loo_compare(loo_list)
+  model_weights <- loo_model_weights(loo_list)
+  
+  #store both in as named in list under each scenario
+  model_comparison_list[[scenario_counter]] <- list(loo_comparison = loo_comparison, model_weights = model_weights)
+  
+  #id for scenarios
+  scenario_counter = scenario_counter + 1
+  
+}
+
+
+```
+
+
+
+
+
+```{r}
+
+model_comparison_list
+```
+
