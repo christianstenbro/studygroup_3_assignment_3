@@ -19,21 +19,27 @@ data {
   array[N] int<lower=0> first_rating;
   array[N] int<lower=0> total;
   array[N] int<lower=0> group_rating;
-  real prior_mu;
-  real<lower=0> prior_sigma;
+  real prior_mu; // not used currently
+  real<lower=0> prior_sigma; // not used currently
     
 }
 
 // The parameters accepted by the model. Our model
 parameters {
-  real<lower=0>w_first; // weight of subject's own first rating for a 
-  real<lower=0>w_group; // weight of the group rating
+  real<lower=0, upper=1>rho; 
+  real<lower=0>kappa; 
+}
+
+// adding transformed parameters (we are re-parametizing the ratings) THESE ARE DETERMINISTIC NOW
+transformed parameters {
+  real<lower=0> w_first = rho * kappa; // weight of subject's own first rating
+  real<lower=0> w_group = (1.0-rho) * kappa; // weight of the group rating
 }
 
 model {
   
-  target += lognormal_lpdf(w_first | prior_mu, prior_sigma); // these should be specified when calling the model  
-  target += lognormal_lpdf(w_group | prior_mu, prior_sigma);
+  target += beta_lpdf(rho | 2, 2); // these should be specified when calling the model  
+  target += lognormal_lpdf(kappa | log(2), 0.5);
 
 
   // Defining likelihood functions
@@ -51,10 +57,12 @@ generated quantities {
   real lprior; // what is this??
 
   // it is an 'accumulator for joint prior log-density required by priorsense'...
-  lprior = lognormal_lpdf(w_first | 0, 0.5) + lognormal_lpdf(w_group | 0, 0.5);
+  lprior = beta_lpdf(rho | 2, 2) + lognormal_lpdf(kappa | log(2), 0.5);
   
-  real wf_prior = lognormal_rng(0, 0.5); // what are these??
-  real wg_prior = lognormal_rng(0, 0.5);
+  real rho_prior = beta_rng(2, 2);
+  real kappa_prior = lognormal_rng(log(2), 0.5);
+  real wf_prior = rho_prior * kappa_prior;
+  real wg_prior = (1.0-rho_prior) * kappa_prior;
 
   for (i in 1:N) {
     // posterior predictions
@@ -64,8 +72,8 @@ generated quantities {
     real beta_post = 0.5 + w_first * (total[i] - first_rating[i]) + w_group * (total[i] - second_rating[i]);
  
     // what do we use this for?
-    log_lik[i] = beta_binomial_lpmf(second_rating[i] | 1, alpha_post, beta_post);
-    posterior_pred[i] = beta_binomial_rng(1, alpha_post, beta_post);
+    log_lik[i] = beta_binomial_lpmf(second_rating[i] | 7, alpha_post, beta_post);
+    posterior_pred[i] = beta_binomial_rng(7, alpha_post, beta_post);
     
     // prior predictionts
     real ap = 0.5 + wf_prior * first_rating[i] + wg_prior * group_rating[i];
