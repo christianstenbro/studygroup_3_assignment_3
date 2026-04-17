@@ -69,7 +69,7 @@ generated quantities {
     real alpha_post = 0.5 + w_first * first_rating[i]
  + w_group * group_rating[i]; 
  
-    real beta_post = 0.5 + w_first * (total[i] - first_rating[i]) + w_group * (total[i] - second_rating[i]);
+    real beta_post = 0.5 + w_first * (total[i] - first_rating[i]) + w_group * (total[i] - group_rating[i]);
  
     // what do we use this for?
     log_lik[i] = beta_binomial_lpmf(second_rating[i] | 7, alpha_post, beta_post);

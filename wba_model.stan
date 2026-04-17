@@ -69,7 +69,7 @@ generated quantities {
     real alpha_post = 0.5 + w_first * first_rating[i]
  + w_group * group_rating[i]; 
  
-    real beta_post = 0.5 + w_first * (total[i] - first_rating[i]) + w_group * (total[i] - second_rating[i]);
+    real beta_post = 0.5 + w_first * (total[i] - first_rating[i]) + w_group * (total[i] - group_rating[i]);
  
     // what do we use this for?
     log_lik[i] = beta_binomial_lpmf(second_rating[i] | 7, alpha_post, beta_post);
@@ -78,7 +78,7 @@ generated quantities {
     // prior predictionts
     real ap = 0.5 + wf_prior * first_rating[i] + wg_prior * group_rating[i];
     real bp = 0.5 + wf_prior * (total[i] - first_rating[i]) + wg_prior * (total[i] - group_rating[i]);
-    prior_pred[i] = beta_binomial_rng(i, ap, bp);
+    prior_pred[i] = beta_binomial_rng(7, ap, bp);
  }
 }
 
