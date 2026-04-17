@@ -47,8 +47,7 @@ set.seed(1)
 scenarios = list(
   list(name = "1", w1 = 1, w2 = 1), 
   list(name = "2", w1 = .8, w2 = 2), 
-  list(name = "3", w1 = .6, w2 = .4), 
-  list(name = "4", w1 = .5, w2 = .1))
+  list(name = "3", w1 = .6, w2 = .4))
 
 #manual for scen 5
 p = .7
@@ -102,35 +101,5 @@ for (scenario in scenarios) {
   write_csv(choice_df, csv_file_name)
 }
 
-###### do manual PBA_agent df
-#get name
-scenario_name = "5"
 
-# update dataframe
-choice_df <- evidence_df %>% 
-  mutate(second_rating = PBA_agent(p, first_ratings, group_ratings),
-         p = p)
-
-#check if NAs were produced
-if (sum(is.na.data.frame(choice_df)) > 0) {
-  cat("NAs in dataframe for sceneario", sceneario_name)}
-
-
-#make sub folder to store it in
-sub_folder = paste0(out_dir, "/", scenario_name)
-
-if (!dir.exists(sub_folder)) {
-  dir.create(sub_folder)
-}
-
-#construct file name
-csv_file_name <- paste0(
-  sub_folder, "/",
-  "scenario_", 
-  scenario_name,
-  ".csv")
-
-
-#save
-write_csv(choice_df, csv_file_name)
 
