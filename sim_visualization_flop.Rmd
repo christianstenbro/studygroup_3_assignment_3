@@ -1,0 +1,69 @@
+---
+title: "simulation_visualization"
+author: "Christian Stenbro"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pacman::p_load("tidyverse", "here")
+```
+
+```{r}
+# read data
+scenario_1 <- read_csv(here("scenario_data", "scenario_1.csv"))
+scenario_2 <- read_csv(here("scenario_data", "scenario_2.csv"))
+scenario_3 <- read_csv(here("scenario_data", "scenario_3.csv"))
+```
+
+```{r}
+scenario_1
+```
+
+
+# visualizing the data
+
+```{r}
+# setting up plotting variables
+data <- scenario_1[1:50,]
+
+trial <- data$trial_id
+
+first_rating <- data$first_ratings
+second_rating <- data$second_rating
+group_rating <- data$group_ratings
+
+plot(x = trial,
+     y = first_rating,
+     col = trial,
+     main = "Ratings for wba with w1 = 1, w2 = 2")
+points(group_rating, 
+       col = trial, 
+       pch = 3)
+points(second_rating, 
+       col = trial, 
+       pch = 2)
+
+legend("topright",
+       legend = c("First Rating", "Group Rating", "Second Rating"),
+       pch = c(1, 3, 2),
+       title = "Trial")
+
+```
+
+```{r}
+scenario_1
+```
+
+```{r}
+scenario_2
+```
+
+```{r}
+scenario_3
+```
+
