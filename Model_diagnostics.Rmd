@@ -27,6 +27,17 @@ pba_fits <- list.files(
 ```
 
 ```{r}
+# Diagnostics summary
+  print(fit$diagnostic_summary())
+```
+```{r}
+  # Trace plots
+  print(mcmc_trace(fit$draws(), pars = "kappa"))
+  print(mcmc_trace(fit$draws(), pars = "rho"))
+```
+
+
+```{r}
 i <- 1
 
 for (file in wba_fits) {
