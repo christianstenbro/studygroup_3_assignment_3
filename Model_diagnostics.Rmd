@@ -1,0 +1,33 @@
+---
+title: "Model_diagnostics"
+output: html_document
+---
+
+```{r}
+pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
+```
+
+```{r}
+fit <- readRDS(here("fitted_models", "wba_model_test_data_wba_wd1_ws05.rds"))
+```
+
+
+```{r}
+fit$diagnostic_summary()
+
+mcmc_trace(fit$draws(), pars = "w_first")
+mcmc_trace(fit$draws(), pars = "w_group")
+
+
+```
+
+```{r}
+mcmc_rank_overlay(fit$draws(), pars = "w_first")
+mcmc_rank_overlay(fit$draws(), pars = "w_group")
+```
+
+```{r}
+# 2. Check R-hat and ESS metrics
+fit_summary <- fit$summary(variables = c("w_first", "w_group"))
+fit_summary %>% select(variable, mean, rhat, ess_bulk, ess_tail)
+```
