@@ -1,7 +1,8 @@
 ---
 title: "visualising_simulated_data"
 output: html_document
----m
+---
+
 ```{r}
 pacman::p_load(here, tidyverse, ggplot2, patchwork)
 ```
@@ -11,8 +12,13 @@ df <- read_csv("test_data_wba_wd1_w05.csv")
 ```
 
 ```{r}
-p1 <- ggplot(df, aes(x = first_ratings, y = second_rating)) +
-  geom_jitter(width = 0.2, height = 0.2, alpha = 0.5, color = "#534AB7") +
+df <- df %>% 
+  mutate(feedback = group_ratings - first_ratings)
+
+p1 <- ggplot(df, aes(x = first_ratings, y = second_rating, color = feedback)) +
+  geom_jitter(width = 0.2, height = 0.2, alpha = 0.8) +
+  scale_color_continuous(high = "red", low = "blue") +
+  geom_abline(linetype = "dashed", alpha = .5) +
   scale_x_continuous(breaks = 1:8) +
   scale_y_continuous(breaks = 1:8) +
   labs(x = "first rating", y = "second rating") +
@@ -31,10 +37,12 @@ p3 <- ggplot(df, aes(x = second_rating)) +
   labs(x = "second rating", y = "count") +
   theme_minimal()
 
+p1
+
 ```
 
 ```{r}
-(p1 | p2) / p3
+p1
 ```
 
 ```{r}
