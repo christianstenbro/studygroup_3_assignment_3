@@ -5,24 +5,25 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-Data note: This script is using local paths, as we are not uploading the data to git...
-
-This script: 
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
 pacman::p_load("tidyverse",
-               "rethinking")
+               "rethinking", 
+               "here")
 ```
 
-# loading data
+# 1. loading experimental data
+
+Data note: This script is using local paths, as we are not uploading the data to git... Please change this path to whatever it is on your local system.
 
 ```{r}
 data <- read_csv("/Users/christianstenbro/AU/MSc/ACM/data/assignment_3_data/Simonsen_clean.csv")
 ```
+# 2. exploring data
+
 ```{r}
 summary(data)
 ```
@@ -47,6 +48,7 @@ data %>% group_by(ID) %>% count(.)
 data %>% group_by(ID)
 ```
 
+## 2.1 plotting variables
 
 ```{r}
 #make plots
@@ -70,6 +72,9 @@ p1 <- ggplot(data, aes(x = GroupRating, y = SecondRating, color = FirstRating)) 
 #call plot
 p1
 ```
+
+Comment on this plot!
+
 Also making a binary version of this plot:
 
 ```{r}
@@ -91,7 +96,7 @@ p1 <- data %>%
 
 p1
 ```
-
+## 2.2 correlation test suite
 
 ```{r}
 cor.test(x=data$FirstRating, y=data$SecondRating)
@@ -102,7 +107,113 @@ cor.test(x=data$GroupRating, y=data$SecondRating)
 ```
 
 ```{r}
-# just as a sanity check (this should be low.. but actually isn't)
+# just as a sanity check (this should be low.. but actually isn't; maybe it makes sense?)
 cor.test(x=data$FirstRating, y=data$GroupRating)
 ```
+
+# 3. fitting models to data
+
+```{r}
+colnames(data)
+```
+
+## 3.1 transforming the data (-1 to all ratings)
+
+```{r}
+range(data$FirstRating)
+range(data$GroupRating)
+range(data$SecondRating)
+```
+
+
+```{r}
+transformed_data <- data %>% mutate(FirstRating = FirstRating - 1,
+                        GroupRating = GroupRating - 1,
+                        SecondRating = SecondRating - 1)
+```
+
+## 3.2 fitting wba
+
+```{r}
+# specifying model file path
+stan_file <- here("wba_model.stan")
+```
+
+```{r}
+# compiling Stan model
+model <- cmdstan_model(stan_file,
+                       cpp_options = list(stan_threads = FALSE),
+                       stanc_options = list("O1"))
+
+fit <- model$sample(
+  data = list(N = nrow(transformed_data), 
+                    first_rating = transformed_data$FirstRating, 
+                    group_rating = transformed_data$GroupRating,
+                    second_rating = transformed_data$SecondRating,
+                    prior_mu = 0,
+                    prior_sigma = 0.5,
+                    total = rep(7, nrow(transformed_data))),      
+  seed = 123,                    
+  chains = 4,                    
+  parallel_chains = 4,       
+  iter_warmup = 1000,            
+  iter_sampling = 2000,          
+  refresh = 0,                   
+  max_treedepth = 10,            
+  adapt_delta = 0.8              
+)
+```
+
+```{r}
+fit
+```
+
+```{r}
+saveRDS(fit, file = here("models_fit_to_data", "wba_data_model.rds"),
+        compress = "xz")
+```
+
+## 3.3 fitting pba
+
+```{r}
+# specifying model file path
+stan_file <- here("pba_model.stan")
+```
+
+```{r}
+# compiling Stan model
+model <- cmdstan_model(stan_file,
+                       cpp_options = list(stan_threads = FALSE),
+                       stanc_options = list("O1"))
+
+fit_pba <- model$sample(
+  data = list(N = nrow(transformed_data), 
+                    first_rating = transformed_data$FirstRating, 
+                    group_rating = transformed_data$GroupRating,
+                    second_rating = transformed_data$SecondRating,
+                    prior_mu = 0,
+                    prior_sigma = 0.5,
+                    total = rep(7, nrow(transformed_data))),      
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  iter_warmup = 1000,
+  iter_sampling = 2000,
+  refresh = 0,
+  max_treedepth = 10,
+  adapt_delta = 0.8
+)
+```
+
+```{r}
+fit_pba
+```
+Some NAs in the ess_tail stand out... Could be a problem.!
+
+```{r}
+saveRDS(fit_pba, 
+        file = here("models_fit_to_data", "pba_data_model.rds"),
+        compress = "xz")
+```
+
 

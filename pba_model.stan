@@ -78,7 +78,7 @@ generated quantities {
     // prior predictionts
     real ap = 0.5 + wf_prior * first_rating[i] + wg_prior * group_rating[i];
     real bp = 0.5 + wf_prior * (total[i] - first_rating[i]) + wg_prior * (total[i] - group_rating[i]);
-    prior_pred[i] = beta_binomial_rng(i, ap, bp);
+    prior_pred[i] = beta_binomial_rng(7, ap, bp);
  }
 }
 
