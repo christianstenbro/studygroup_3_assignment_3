@@ -3,6 +3,8 @@ title: "model_comp"
 output: html_document
 ---
 
+This markdown runs model comparison on fitted PBA against WBA for each scenerio. It uses Pareto-Smoothed Importance Sampling (PSIS) to approximate the out-of-sample performance by approximating the expected log pointwise predictive density (ELPD).
+
 ```{r}
 pacman::p_load(cmdstanr, tidyverse, tidybayes, loo)
 ```
@@ -19,70 +21,187 @@ model_comparison_list <- list()
 
 #loop through each scenario folder
 for (scenario in scenario_folders) {
-  
+
   #get scenario data
   data_file = list.files(scenario, full.names = T, pattern = "*.csv")
-  
+
   #get models
   rds_files <- list.files(scenario, full.names = T, pattern = "*.rds")
-  
-  
+
+  #store empty list for loos
   loo_objects = list()
-  
+
     #compute loo for each model
   for (model_file in rds_files) {
 
     #read in fit
     fit <- readRDS(model_file)
-    
+
     cat(model_file, "\n")
-    
+
     #make loo
     loo_obj <- fit$loo()
-    
+
     #assign to correct var name
     if (str_detect(model_file, "pba")){
       pba_loo <- loo_obj
     } else{
       wba_loo <- loo_obj
     }
-    
+
   }
   #put objects into named list. Important for naming output in loo_compare. Then compare
   loo_list = list(PBA = pba_loo,
                 WBA = wba_loo)
-  
+
   #make loo comparison and get model weights
   loo_comparison <- loo_compare(loo_list)
   model_weights <- loo_model_weights(loo_list)
-  
+
   #store both in as named in list under each scenario
-  model_comparison_list[[scenario_counter]] <- list(loo_comparison = loo_comparison, model_weights = model_weights)
-  
+  model_comparison_list[[scenario_counter]] <- list(
+    scenario      = basename(scenario),
+    loo_comparison = loo_comparison,
+    model_weights  = model_weights,
+    pba_loo        = pba_loo,
+    wba_loo        = wba_loo
+  )
+
   #id for scenarios
   scenario_counter = scenario_counter + 1
-  
+
+
 }
-
-
 ```
 
+```{r results='asis'}
+all_plot_df    <- list()
+all_weights_df <- list()
 
+for (res in model_comparison_list) {
+  scenario_label <- paste("Scenario", res$scenario)
 
+  cat("##", scenario_label, "\n\n")
 
+  # --- Table: ELPD diff, SE diff, stacking weights ---
+  comp_mat <- res$loo_comparison
+  weights  <- res$model_weights
+
+  table_df <- data.frame(
+    Model           = rownames(comp_mat),
+    ELPD_diff       = round(comp_mat[, "elpd_diff"], 2),
+    SE_diff         = round(comp_mat[, "se_diff"],   2),
+    Stacking_weight = round(as.numeric(weights[rownames(comp_mat)]), 3)
+  )
+
+  print(knitr::kable(table_df, row.names = FALSE,
+                     col.names = c("Model", "ELPD diff", "SE diff", "Stacking weight"),
+                     caption = paste(scenario_label, "- LOO comparison")))
+  cat("\n\n")
+
+  all_plot_df[[res$scenario]] <- data.frame(
+    Scenario  = scenario_label,
+    Model     = rownames(comp_mat),
+    elpd_diff = comp_mat[, "elpd_diff"],
+    se_diff   = comp_mat[, "se_diff"]
+  )
+
+  all_weights_df[[res$scenario]] <- data.frame(
+    Scenario        = scenario_label,
+    Model           = names(weights),
+    Stacking_weight = as.numeric(weights)
+  )
+}
+```
 
 ```{r}
+# Append real-data fit comparison
+pba_data_loo <- readRDS("models_fit_to_data/pba_data_model.rds")$loo()
+wba_data_loo <- readRDS("models_fit_to_data/wba_data_model.rds")$loo()
 
-pba_fit <- readRDS("scenario_data/3/pba_model_scenario_3.rds")
- 
+data_loo_list   <- list(PBA = pba_data_loo, WBA = wba_data_loo)
+data_comparison <- loo_compare(data_loo_list)
+data_weights    <- loo_model_weights(data_loo_list)
 
-log_lik_df <- pba_fit$summary(variables = "log_lik")
+all_plot_df[["real_data"]] <- data.frame(
+  Scenario  = "Real data",
+  Model     = rownames(data_comparison),
+  elpd_diff = data_comparison[, "elpd_diff"],
+  se_diff   = data_comparison[, "se_diff"]
+)
 
-log_lik_df$trial_num <- c(1:nrow(log_lik_df))
+all_weights_df[["real_data"]] <- data.frame(
+  Scenario        = "Real data",
+  Model           = names(data_weights),
+  Stacking_weight = as.numeric(data_weights)
+)
+```
+
+## Simulated scenarios
+
+```{r}
+scenario_plot_df    <- bind_rows(all_plot_df[names(all_plot_df) != "real_data"])
+scenario_weights_df <- bind_rows(all_weights_df[names(all_weights_df) != "real_data"])
+
+ggplot(scenario_weights_df, aes(x = Model, y = Stacking_weight, fill = Model)) +
+  geom_col() +
+  facet_wrap(~ Scenario) +
+  labs(y = "Stacking weight", x = "Model") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(scenario_plot_df, aes(x = Model, y = elpd_diff, color = Model)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = elpd_diff - se_diff, ymax = elpd_diff + se_diff), width = 0.15, linewidth = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  facet_wrap(~ Scenario) +
+  labs(y = "ELPD diff", x = "Model") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Real data
+
+```{r}
+real_plot_df    <- all_plot_df[["real_data"]]
+real_weights_df <- all_weights_df[["real_data"]]
+
+ggplot(real_weights_df, aes(x = Model, y = Stacking_weight, fill = Model)) +
+  geom_col() +
+  labs(y = "Stacking weight", x = "Model") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+ggplot(real_plot_df, aes(x = Model, y = elpd_diff, color = Model)) +
+  geom_point(size = 4) +
+  geom_errorbar(aes(ymin = elpd_diff - se_diff, ymax = elpd_diff + se_diff), width = 0.15, linewidth = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  labs(y = "ELPD diff", x = "Model") +
+  theme_minimal() +
+  theme(legend.position = "none")
 ```
 
 ```{r}
-hist(log_lik_df$mean)
+problematic_ids <- pareto_k_ids(pba_loo) 
+
+pareto_k_vals <- pareto_k_values(pba_loo)
+
+scen_3 <- read_csv("scenario_data/3/scenario_3.csv")
+
+scen_3 <- scen_3 %>% 
+  mutate(problematic_pareto = trial_id %in% problematic_ids)
+
+scen_3$pareto_k_vals <- pareto_k_vals
+
+ggplot(scen_3, aes(x = first_ratings, y = group_ratings, color = problematic_pareto)) +
+  geom_jitter() +
+  geom_abline(linetype = "dashed") +
+  theme_minimal()
+
+
 ```
+
+
+
 
 
