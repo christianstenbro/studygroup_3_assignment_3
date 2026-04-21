@@ -1,0 +1,142 @@
+---
+title: "prior_posterior_update_checks"
+output: html_document
+---
+
+# set-up
+
+```{r}
+pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
+```
+
+```{r}
+#Lets try this out for the PBA
+
+file_path = here("scenario_data", "3")
+
+
+# import simulation data
+data_raw <- read_csv(file.path(file_path, "scenario_3_more_samples.csv"))
+
+# import model fit
+fit <- readRDS(file.path(file_path, "wba_model_scenario_3.rds"))
+```
+# reasoning about prior-posterior update check
+
+The goal is to investigate the relationship between the prior and the posterior. Concretely, we ask the following:
+
+- Has the data been informative, meaning, *is the posterior distribution visually narrower than the prior distribution?*
+- Is the prior too restrictive, meaning, *is the posterior distribution's mean different from the prior distribution's mean?*
+
+The way we do this is by visualizing the marginal posterior distribution against the marginal prior distribution. The code is based on ch. 6 in Riccardo's book:
+
+```{r}
+# First, we extract the draws from the samples
+draws <- as_draws_df(fit$draws())
+```
+
+```{r}
+# Then, we define the ground truth for our estimand 
+true_w_first <- 0.6
+true_w_group <- 0.4
+true_kappa   <- true_w_first + true_w_group 
+true_rho     <- true_w_first / true_kappa    
+```
+
+```{r}
+# Make a helper-function that extracts the marginal prior and posterior distributions and put them in a neat tibble
+make_update_df <- function(prior_vec, posterior_vec) {
+  tibble(
+    value        = c(prior_vec, posterior_vec),
+    distribution = factor(
+      rep(c("Prior", "Posterior"), each = length(prior_vec)),
+      levels = c("Prior", "Posterior")
+    )
+  )
+}
+```
+
+```{r}
+#Make a plotting function 
+make_update_plot <- function(df, true_val, title, xlab) {
+  ggplot(df, aes(x = value, fill = distribution)) +
+    geom_density(alpha = 0.6, color = "white") +
+    geom_vline(xintercept = true_val, color = "black",
+               linetype = "dashed", linewidth = 1) +
+    scale_fill_manual(values = c("Prior" = "#ffbaba", "Posterior" = "skyblue")) +
+    annotate(
+      "text", x = true_val, y = Inf,
+      label = sprintf("True = %.2f", true_val),
+      vjust = 2,
+      hjust = if (true_val > median(df$value)) 1.1 else -0.1,
+      size = 4, fontface = "bold"
+    ) +
+    labs(
+      title    = title,
+      x        = xlab,
+      y        = "Marginal Density"
+    ) +
+    theme_classic() +
+    theme(
+      legend.position  = "bottom",
+      legend.title     = element_blank(),
+      legend.text      = element_text(size = 12)
+    )
+}
+```
+
+```{r}
+#Create a df for each parameter
+df_rho     <- make_update_df(draws$rho_prior,    draws$rho)
+df_kappa   <- make_update_df(draws$kappa_prior,  draws$kappa)
+df_wfirst  <- make_update_df(draws$wf_prior,     draws$w_first)
+df_wgroup  <- make_update_df(draws$wg_prior,     draws$w_group)
+```
+
+```{r}
+#Create a plot for each parameter:
+p_rho_3 <- make_update_plot(
+  df_rho, true_rho,
+  title = "Scenario 3 - Prior-Posterior Update: Rho",
+  xlab  = "Rho"
+)
+
+p_kappa_3 <- make_update_plot(
+  df_kappa, true_kappa,
+  title = "Scenario 3 - Prior-Posterior Update: Kappa",
+  xlab  = "Kappa"
+)
+
+```
+
+
+```{r}
+p_rho_3
+```
+```{r}
+p_kappa_3
+```
+
+
+
+```{r}
+#Plot!
+library(patchwork)
+
+(p_rho_1 | p_kappa_1) / (p_rho_2 | p_kappa_2) / (p_rho_3 | p_kappa_3)+
+  plot_annotation(
+    title = "Prior-Posterior Update Checks: Weighted Bayesian Agent - wider kappa prior",
+    theme = theme(plot.title = element_text(size = 16, face = "bold"))
+  )
+```
+
+
+Plots are interpreted in the report. One note: The prior is cut of at the limits, but I think that is expected behaviour, exactly since we are in the constrained space. However, I am surprised by how artificial this cut-off appears.
+
+
+### Now do it all on real data:
+
+
+
+
+
