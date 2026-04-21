@@ -169,7 +169,7 @@ fit
 ```
 
 ```{r}
-saveRDS(fit, file = here("models_fit_to_data", "wba_data_model.rds"),
+saveRDS(fit, file = here("models_fit_to_data", "wba_data_model.Rdata"),
         compress = "xz")
 ```
 
@@ -212,8 +212,31 @@ Some NAs in the ess_tail stand out... Could be a problem.!
 
 ```{r}
 saveRDS(fit_pba, 
-        file = here("models_fit_to_data", "pba_data_model.rds"),
+        file = here("models_fit_to_data", "pba_data_model.Rdata"),
         compress = "xz")
+```
+
+# testing that we can load the fits
+
+```{r}
+fit_pba_loaded <- readRDS(here("models_fit_to_data", "pba_data_model.Rdata"))
+```
+
+```{r}
+fit_pba_loaded
+```
+```{r}
+# checking stan stuff versioning, for collaborative debugging
+packageVersion("cmdstanr")
+packageVersion("rstan")
+```
+
+```{r}
+draws <- fit_pba_loaded$draws()
+```
+
+```{r}
+draws
 ```
 
 
