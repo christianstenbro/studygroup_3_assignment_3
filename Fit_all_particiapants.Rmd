@@ -60,8 +60,9 @@ for (id in unique(transformed_data$ID)) {
 draws_list <- lapply(fits, function(fit) as_draws_df(fit$draws()))
 saveRDS(draws_list, here("models_fit_to_data", "pba_empirical_draws.rds"))
 
-
 ```
+
+
 ```{r}
 # Check diagnostics immediately while temp files still exist
 for (id in names(fits)) {
