@@ -1,0 +1,76 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pacman::p_load("tidyverse",
+               "rethinking", 
+               "here")
+```
+
+```{r}
+data <- read_csv(here("Simonsen_clean.csv"))
+```
+
+```{r}
+transformed_data <- data %>% mutate(FirstRating = FirstRating - 1,
+                        GroupRating = GroupRating - 1,
+                        SecondRating = SecondRating - 1)
+```
+
+
+```{r}
+transformed_data <- data %>% mutate(FirstRating = FirstRating - 1,
+                        GroupRating = GroupRating - 1,
+                        SecondRating = SecondRating - 1)
+
+stan_file <- here("pba_model.stan")
+
+model <- cmdstan_model(stan_file,
+                       cpp_options = list(stan_threads = FALSE),
+                       stanc_options = list("O1"))
+
+fits <- list()
+
+for (id in unique(transformed_data$ID)) {
+  
+  cat("Fitting participant", id, "\n")
+  
+  participant_data <- transformed_data %>% filter(ID == id)
+  
+  fits[[as.character(id)]] <- model$sample(
+    data = list(N = nrow(participant_data), 
+                first_rating = participant_data$FirstRating, 
+                group_rating = participant_data$GroupRating,
+                second_rating = participant_data$SecondRating,
+                prior_mu = 0,
+                prior_sigma = 0.5,
+                total = rep(7, nrow(participant_data))),      
+    seed = 123,                    
+    chains = 4,                    
+    parallel_chains = 4,       
+    iter_warmup = 1000,            
+    iter_sampling = 2000,          
+    refresh = 0,                   
+    max_treedepth = 10,            
+    adapt_delta = 0.8              
+  )
+}
+
+# Extract and save draws immediately after
+draws_list <- lapply(fits, function(fit) as_draws_df(fit$draws()))
+saveRDS(draws_list, here("models_fit_to_data", "pba_empirical_draws.rds"))
+```
+```{r}
+# Check diagnostics immediately while temp files still exist
+for (id in names(fits)) {
+  diag <- fits[[id]]$diagnostic_summary(quiet = TRUE)
+  if (any(diag$num_divergent > 0) | any(diag$num_max_treedepth > 0)) {
+    cat("\n⚠️ Issues in participant:", id, "\n")
+    print(diag)
+  }
+}
+```
+
+
