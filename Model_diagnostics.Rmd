@@ -85,3 +85,56 @@ for (file in pba_fits) {
 fit$diagnostic_summary()
 ```
 
+#For empirical fits 
+
+```{r}
+#WBA 
+draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
+
+summaries <- list()
+
+for (id in names(draws_list)) {
+  draws <- draws_list[[id]]
+  summaries[[id]] <- summarise_draws(draws, "mean", "rhat", "ess_bulk", "ess_tail") %>%
+    filter(variable %in% c("rho", "kappa"))
+}
+
+summary_df <- bind_rows(summaries, .id = "participant_id")
+
+cat("\n── WBA Empirical Summary Ranges ────────────────\n")
+summary_df %>%
+  group_by(variable) %>%
+  summarise(
+    rhat_min = min(rhat,     na.rm = TRUE),
+    rhat_max = max(rhat,     na.rm = TRUE),
+    ess_min  = min(ess_bulk, na.rm = TRUE),
+    ess_max  = max(ess_bulk, na.rm = TRUE)
+  ) %>%
+  print()
+```
+
+```{r}
+draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
+
+summaries <- list()
+
+for (id in names(draws_list)) {
+  draws <- draws_list[[id]]
+  summaries[[id]] <- summarise_draws(draws, "mean", "rhat", "ess_bulk", "ess_tail") %>%
+    filter(variable %in% c("p"))
+}
+
+summary_df <- bind_rows(summaries, .id = "participant_id")
+
+cat("\n── PBA Empirical Summary Ranges ────────────────\n")
+summary_df %>%
+  group_by(variable) %>%
+  summarise(
+    rhat_min = min(rhat,     na.rm = TRUE),
+    rhat_max = max(rhat,     na.rm = TRUE),
+    ess_min  = min(ess_bulk, na.rm = TRUE),
+    ess_max  = max(ess_bulk, na.rm = TRUE)
+  ) %>%
+  print()
+```
+

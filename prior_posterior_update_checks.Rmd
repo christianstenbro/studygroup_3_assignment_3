@@ -135,8 +135,88 @@ Plots are interpreted in the report. One note: The prior is cut of at the limits
 
 
 ### Now do it all on real data:
+```{r}
+#Update the plotting function 
+make_update_plot <- function(df, title, xlab) {
+  ggplot(df, aes(x = value, fill = distribution)) +
+    geom_density(alpha = 0.6, color = "white") +
+    scale_fill_manual(values = c("Prior" = "#ffbaba", "Posterior" = "skyblue")) +
+    labs(
+      title    = title,
+      x        = xlab,
+      y        = "Marginal Density"
+    ) +
+    theme_classic() +
+    theme(
+      legend.position  = "bottom",
+      legend.title     = element_blank(),
+      legend.text      = element_text(size = 12)
+    )
+}
+```
 
+```{r}
+#WBA
 
+draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
+
+selected_ids <- c("203", "225", "242")
+
+for (id in selected_ids) {
+  
+  draws <- draws_list[[id]]
+  
+  # Build update dfs
+  df_rho    <- make_update_df(draws$rho_prior,   draws$rho)
+  df_kappa  <- make_update_df(draws$kappa_prior, draws$kappa)
+  df_wfirst <- make_update_df(draws$wf_prior,    draws$w_first)
+  df_wgroup <- make_update_df(draws$wg_prior,    draws$w_group)
+  
+  # Make plots
+  p_rho    <- make_update_plot(df_rho,    title = "Rho",    xlab = "Rho")
+  p_kappa  <- make_update_plot(df_kappa,  title = "Kappa",  xlab = "Kappa")
+  p_wfirst <- make_update_plot(df_wfirst, title = "Wfirst", xlab = "wfirst")
+  p_wgroup <- make_update_plot(df_wgroup, title = "Wgroup", xlab = "wgroup")
+  
+  print(
+    (p_rho | p_kappa) / (p_wfirst | p_wgroup) +
+      plot_annotation(
+        title = paste("Prior-Posterior Update: Participant", id),
+        theme = theme(plot.title = element_text(size = 14, face = "bold"))
+      )
+  )
+}
+```
+
+```{r}
+#PBA 
+draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
+
+selected_ids <- c("203", "225", "242")
+
+for (id in selected_ids) {
+  
+  draws <- draws_list[[id]]
+  
+  # Build update dfs
+  df_p    <- make_update_df(draws$p_prior,   draws$p)
+  df_wfirst <- make_update_df(draws$wf_prior,    draws$w_first)
+  df_wgroup <- make_update_df(draws$wg_prior,    draws$w_group)
+  
+  # Make plots
+  p_p    <- make_update_plot(df_p,   title = "p",    xlab = "p")
+  p_wfirst <- make_update_plot(df_wfirst, title = "Wfirst", xlab = "wfirst")
+  p_wgroup <- make_update_plot(df_wgroup, title = "Wgroup", xlab = "wgroup")
+  
+  print(
+    (p_p) / (p_wfirst | p_wgroup) +
+      plot_annotation(
+        title = paste("PBA - Prior-Posterior Update: Participant", id),
+        theme = theme(plot.title = element_text(size = 14, face = "bold"))
+      )
+  )
+}
+```
 
 
 
