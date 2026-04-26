@@ -93,7 +93,7 @@ p1 <-
   
   filter(ID %in% c(201,203,204,205,206)) %>% 
   
-  ggplot(aes(x = FirstRating, y = SecondRating, color = GroupRating)) +
+  ggplot(aes(x = FirstRating, y = SecondRating, color = Feedback)) +
   
   geom_jitter(width = 0.5, height = 0.5, alpha = 0.5) +
   
@@ -101,9 +101,9 @@ p1 <-
   
   geom_abline(linetype = "dashed", alpha = .7) +
   
-  labs(x = "group rating", y = "second rating") +
+  labs(x = "First Rating", y = "Second Rating") +
   
-  ggtitle("Plotting second ratings against group ratings for a participant subset, \ncolored by the first rating") +
+  ggtitle("Plotting first ratings against second ratings for a participant subset, \ncolored by feedback") +
   
   theme_minimal() +
   
@@ -140,16 +140,20 @@ p1
 ## 2.2 correlation test suite
 
 ```{r}
-cor.test(x=data$FirstRating, y=data$SecondRating)
+test1 <- cor.test(x=data$FirstRating, y=data$SecondRating)
+round(test1$estimate, 2)
+test1
 ```
 
 ```{r}
-cor.test(x=data$GroupRating, y=data$SecondRating)
+test2 <- cor.test(x=data$GroupRating, y=data$SecondRating)
+round(test2$estimate, 2)
 ```
 
 ```{r}
 # just as a sanity check (this should be low.. but actually isn't; maybe it makes sense?)
-cor.test(x=data$FirstRating, y=data$GroupRating)
+test3 <- cor.test(x=data$FirstRating, y=data$GroupRating)
+round(test3$estimate, 2)
 ```
 
 # 3. fitting models to data
