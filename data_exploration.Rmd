@@ -42,6 +42,13 @@ How many trials pr. participant?
 data %>% group_by(ID) %>% count(.)
 ```
 
+Total rows:
+
+```{r}
+nrow(data)
+```
+
+
 153 pr. participant.
 
 ```{r}
@@ -51,27 +58,61 @@ data %>% group_by(ID)
 ## 2.1 plotting variables
 
 ```{r}
+data
+```
+
+
+```{r}
 #make plots
-p1 <- ggplot(data, aes(x = GroupRating, y = SecondRating, color = FirstRating)) +
+p1 <- 
+  data %>% 
   
-  #make jittered points
-  geom_jitter(width = 0.5, height = 0.5, alpha = 0.3) +
+  ggplot(aes(x = FirstRating, y = SecondRating, color = Feedback)) +
   
-  #make heat mapping of points based on feedback
+  geom_jitter(width = 0.5, height = 0.5, alpha = 0.2) +
+  
   scale_color_continuous(high = "red", low = "blue") +
   
-  #draw line of x=y
-  geom_abline(linetype = "dashed", alpha = .5) +
+  geom_abline(linetype = "dashed", alpha = .7) +
   
-  #make labs
-  labs(x = "group rating", y = "second rating") +
+  labs(x = "First Rating", y = "Second Rating") +
   
-  #theme
+  ggtitle(label="Plotting first ratings against second ratings", 
+          subtitle="colored by the group rating difference (feedback)") +
+  
   theme_minimal()
 
 #call plot
 p1
 ```
+
+```{r}
+#make plots
+p1 <- 
+  data %>% 
+  
+  filter(ID %in% c(201,203,204,205,206)) %>% 
+  
+  ggplot(aes(x = FirstRating, y = SecondRating, color = GroupRating)) +
+  
+  geom_jitter(width = 0.5, height = 0.5, alpha = 0.5) +
+  
+  scale_color_continuous(high = "red", low = "blue") +
+  
+  geom_abline(linetype = "dashed", alpha = .7) +
+  
+  labs(x = "group rating", y = "second rating") +
+  
+  ggtitle("Plotting second ratings against group ratings for a participant subset, \ncolored by the first rating") +
+  
+  theme_minimal() +
+  
+  facet_wrap(~ID, ncol = 3)
+
+#call plot
+p1
+```
+
 
 Comment on this plot!
 
