@@ -37,10 +37,9 @@ transformed parameters {
 }
 
 model {
-  
-  target += beta_lpdf(rho | 2, 2); // these should be specified when calling the model  
+  // these are priors
+  target += beta_lpdf(rho | 2, 2); 
   target += lognormal_lpdf(kappa | log(2), 0.5);
-
 
   // Defining likelihood functions
   vector[N] alpha_post = 0.5 + w_first * to_vector(first_rating) + w_group * to_vector(group_rating);
