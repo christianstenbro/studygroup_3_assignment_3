@@ -1,0 +1,216 @@
+---
+title: "Ch11"
+author: "Bryan Roemelt"
+date: "2026-04-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+```{r}
+pacman::p_load(tidyverse, here, posterior, cmdstanr, bayesplot, patchwork)
+
+pba_draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
+wba_draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
+```
+
+# ── Helper functions ──────────────────────────────────────────────────────────
+```{r}
+extract_predictive_data <- function(draws, stan_data, participant_id, 
+                                    target_var = "posterior_pred") {
+  obs_df <- tibble(
+    obs_id        = seq_len(stan_data$N),
+    first_rating  = stan_data$first_rating,
+    group_rating  = stan_data$group_rating,
+    second_rating = stan_data$second_rating
+  )
+  pred_samples <- draws |>
+    dplyr::select(-.chain, -.iteration) |>
+    tidyr::pivot_longer(
+      cols      = dplyr::starts_with(target_var),
+      names_to  = "obs_id",
+      values_to = "pred"
+    ) |>
+    dplyr::mutate(obs_id = readr::parse_number(obs_id))
+  obs_summary <- obs_df |>
+    dplyr::group_by(first_rating, group_rating) |>
+    dplyr::summarise(mean_obs = mean(second_rating), .groups = "drop")
+  pred_summary <- pred_samples |>
+    dplyr::left_join(obs_df, by = "obs_id") |>
+    dplyr::group_by(.draw, first_rating, group_rating) |>
+    dplyr::summarise(mean_draw = mean(pred), .groups = "drop") |>
+    dplyr::group_by(first_rating, group_rating) |>
+    dplyr::summarise(
+      mean_pred = median(mean_draw),
+      lower     = quantile(mean_draw, 0.025, na.rm = TRUE),
+      upper     = quantile(mean_draw, 0.975, na.rm = TRUE),
+      .groups   = "drop"
+    ) |>
+    dplyr::left_join(obs_summary, by = c("first_rating", "group_rating")) |>
+    dplyr::mutate(ID = participant_id)
+  return(pred_summary)
+}
+
+plot_predictive_check <- function(plot_data, title, subtitle) {
+  ggplot(plot_data,
+         aes(x = first_rating, colour = factor(group_rating), 
+             fill = factor(group_rating))) +
+    geom_linerange(aes(ymin = lower, ymax = upper),
+                   position = position_dodge(width = 0.6),
+                   alpha = 0.5, linewidth = 2) +
+    geom_line(aes(y = mean_pred),
+              position = position_dodge(width = 0.6),
+              linewidth = 1) +
+    geom_point(aes(y = mean_obs),
+               shape = 21, colour = "black", stroke = 0.8, size = 2,
+               position = position_dodge(width = 0.6)) +
+    scale_x_continuous(breaks = 0:6) +
+    coord_cartesian(ylim = c(0, 6)) +
+    labs(title = title, subtitle = subtitle,
+         x = "First Rating", y = "Mean Second Rating",
+         colour = "Group Rating", fill = "Group Rating") +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          strip.text = element_text(face = "bold", size = 11))
+}
+
+generate_pba_prior <- function(stan_data, participant_id, n_draws = 500) {
+  obs_df <- tibble(
+    obs_id        = seq_len(stan_data$N),
+    first_rating  = stan_data$first_rating,
+    group_rating  = stan_data$group_rating,
+    second_rating = stan_data$second_rating,
+    total         = stan_data$total
+  )
+  p_prior  <- rbeta(n_draws, 1, 1)
+  wf_prior <- p_prior
+  wg_prior <- 1 - p_prior
+  pred_samples <- expand_grid(.draw = 1:n_draws, obs_id = obs_df$obs_id) |>
+    left_join(obs_df, by = "obs_id") |>
+    mutate(
+      wf         = wf_prior[.draw],
+      wg         = wg_prior[.draw],
+      alpha_post = pmax(0.01, 0.5 + wf * first_rating + wg * group_rating),
+      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) + 
+                          wg * (total - group_rating)),
+      theta      = rbeta(n(), alpha_post, beta_post),
+      theta      = pmin(pmax(theta, 0), 1),
+      pred       = rbinom(n(), size = 7, prob = theta)
+    ) |>
+    filter(!is.na(pred))
+  obs_summary <- obs_df |>
+    group_by(first_rating, group_rating) |>
+    summarise(mean_obs = mean(second_rating), .groups = "drop")
+  pred_samples |>
+    group_by(.draw, first_rating, group_rating) |>
+    summarise(mean_draw = mean(pred), .groups = "drop") |>
+    group_by(first_rating, group_rating) |>
+    summarise(
+      mean_pred = median(mean_draw),
+      lower     = quantile(mean_draw, 0.025, na.rm = TRUE),
+      upper     = quantile(mean_draw, 0.975, na.rm = TRUE),
+      .groups   = "drop"
+    ) |>
+    left_join(obs_summary, by = c("first_rating", "group_rating")) |>
+    mutate(ID = participant_id)
+}
+
+generate_wba_prior <- function(stan_data, participant_id, n_draws = 500) {
+  obs_df <- tibble(
+    obs_id        = seq_len(stan_data$N),
+    first_rating  = stan_data$first_rating,
+    group_rating  = stan_data$group_rating,
+    second_rating = stan_data$second_rating,
+    total         = stan_data$total
+  )
+  rho_prior   <- rbeta(n_draws, 2, 2)
+  kappa_prior <- rlnorm(n_draws, log(2), 0.5)
+  wf_prior    <- rho_prior * kappa_prior
+  wg_prior    <- (1 - rho_prior) * kappa_prior
+  pred_samples <- expand_grid(.draw = 1:n_draws, obs_id = obs_df$obs_id) |>
+    left_join(obs_df, by = "obs_id") |>
+    mutate(
+      wf         = wf_prior[.draw],
+      wg         = wg_prior[.draw],
+      alpha_post = pmax(0.01, 0.5 + wf * first_rating + wg * group_rating),
+      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) + 
+                          wg * (total - group_rating)),
+      theta      = rbeta(n(), alpha_post, beta_post),
+      theta      = pmin(pmax(theta, 0), 1),
+      pred       = rbinom(n(), size = 7, prob = theta)
+    ) |>
+    filter(!is.na(pred))
+  obs_summary <- obs_df |>
+    group_by(first_rating, group_rating) |>
+    summarise(mean_obs = mean(second_rating), .groups = "drop")
+  pred_samples |>
+    group_by(.draw, first_rating, group_rating) |>
+    summarise(mean_draw = mean(pred), .groups = "drop") |>
+    group_by(first_rating, group_rating) |>
+    summarise(
+      mean_pred = median(mean_draw),
+      lower     = quantile(mean_draw, 0.025, na.rm = TRUE),
+      upper     = quantile(mean_draw, 0.975, na.rm = TRUE),
+      .groups   = "drop"
+    ) |>
+    left_join(obs_summary, by = c("first_rating", "group_rating")) |>
+    mutate(ID = participant_id)
+}
+```
+
+# ── Generate predictions ──────────────────────────────────────────────────────
+```{r}
+make_stan_data <- function(id) {
+  participant_data <- transformed_data %>% filter(ID == id)
+  list(
+    N             = nrow(participant_data),
+    first_rating  = participant_data$FirstRating,
+    group_rating  = participant_data$GroupRating,
+    second_rating = participant_data$SecondRating,
+    total         = rep(7, nrow(participant_data))
+  )
+}
+
+pba_prior_ppc <- imap_dfr(pba_draws_list, function(draws, id)
+  generate_pba_prior(make_stan_data(id), participant_id = id))
+
+wba_prior_ppc <- imap_dfr(wba_draws_list, function(draws, id)
+  generate_wba_prior(make_stan_data(id), participant_id = id))
+
+pba_post_ppc <- imap_dfr(pba_draws_list, function(draws, id)
+  extract_predictive_data(draws, make_stan_data(id), participant_id = id))
+
+wba_post_ppc <- imap_dfr(wba_draws_list, function(draws, id)
+  extract_predictive_data(draws, make_stan_data(id), participant_id = id))
+```
+
+# ── Plot ──────────────────────────────────────────────────────────────────────
+```{r}
+p1 <- plot_predictive_check(pba_prior_ppc,
+  title = "PBA - Prior Predictive Check", subtitle = "Pooled across participants")
+p2 <- plot_predictive_check(pba_post_ppc,
+  title = "PBA - Posterior Predictive Check", subtitle = "Pooled across participants")
+p3 <- plot_predictive_check(wba_prior_ppc,
+  title = "WBA - Prior Predictive Check", subtitle = "Pooled across participants")
+p4 <- plot_predictive_check(wba_post_ppc,
+  title = "WBA - Posterior Predictive Check", subtitle = "Pooled across participants")
+
+(p1 | p2) / (p3 | p4) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+```
+```{r}
+p1
+
+p2
+
+p3
+
+p4
+```
+
+
