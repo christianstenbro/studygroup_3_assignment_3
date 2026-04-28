@@ -1,23 +1,14 @@
 ---
 title: "Predictive Checks"
-author: "Bryan Roemelt"
-date: "2026-04-26"
-output: html_document
 ---
-
+# ── Setup ─────────────────────────────────────────────────────────────────────
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-
-# ── Setup ────────────────────────────────────────────────────────────────────
-```{r}
 pacman::p_load(tidyverse, here, posterior, cmdstanr, bayesplot, patchwork)
 
 pba_draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
 wba_draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
 ```
-
 # ── Helper functions ──────────────────────────────────────────────────────────
 ```{r}
 extract_predictive_data <- function(draws, stan_data, participant_id, 
@@ -39,7 +30,7 @@ extract_predictive_data <- function(draws, stan_data, participant_id,
   obs_summary <- obs_df |>
     dplyr::group_by(first_rating, group_rating) |>
     dplyr::summarise(mean_obs = mean(second_rating), .groups = "drop")
-  pred_summary <- pred_samples |>
+  pred_samples |>
     dplyr::left_join(obs_df, by = "obs_id") |>
     dplyr::group_by(.draw, first_rating, group_rating) |>
     dplyr::summarise(mean_draw = mean(pred), .groups = "drop") |>
@@ -52,30 +43,6 @@ extract_predictive_data <- function(draws, stan_data, participant_id,
     ) |>
     dplyr::left_join(obs_summary, by = c("first_rating", "group_rating")) |>
     dplyr::mutate(ID = participant_id)
-  return(pred_summary)
-}
-
-plot_predictive_check <- function(plot_data, title, subtitle) {
-  ggplot(plot_data,
-         aes(x = first_rating, colour = factor(group_rating), 
-             fill = factor(group_rating))) +
-    geom_linerange(aes(ymin = lower, ymax = upper),
-                   position = position_dodge(width = 0.6),
-                   alpha = 0.5, linewidth = 2) +
-    geom_line(aes(y = mean_pred),
-              position = position_dodge(width = 0.6),
-              linewidth = 1) +
-    geom_point(aes(y = mean_obs),
-               shape = 21, colour = "black", stroke = 0.8, size = 2,
-               position = position_dodge(width = 0.6)) +
-    scale_x_continuous(breaks = 0:6) +
-    coord_cartesian(ylim = c(0, 6)) +
-    labs(title = title, subtitle = subtitle,
-         x = "First Rating", y = "Mean Second Rating",
-         colour = "Group Rating", fill = "Group Rating") +
-    theme_bw() +
-    theme(legend.position = "bottom",
-          strip.text = element_text(face = "bold", size = 11))
 }
 
 generate_pba_prior <- function(stan_data, participant_id, n_draws = 500) {
@@ -95,7 +62,7 @@ generate_pba_prior <- function(stan_data, participant_id, n_draws = 500) {
       wf         = wf_prior[.draw],
       wg         = wg_prior[.draw],
       alpha_post = pmax(0.01, 0.5 + wf * first_rating + wg * group_rating),
-      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) + 
+      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) +
                           wg * (total - group_rating)),
       theta      = rbeta(n(), alpha_post, beta_post),
       theta      = pmin(pmax(theta, 0), 1),
@@ -137,7 +104,7 @@ generate_wba_prior <- function(stan_data, participant_id, n_draws = 500) {
       wf         = wf_prior[.draw],
       wg         = wg_prior[.draw],
       alpha_post = pmax(0.01, 0.5 + wf * first_rating + wg * group_rating),
-      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) + 
+      beta_post  = pmax(0.01, 0.5 + wf * (total - first_rating) +
                           wg * (total - group_rating)),
       theta      = rbeta(n(), alpha_post, beta_post),
       theta      = pmin(pmax(theta, 0), 1),
@@ -161,8 +128,7 @@ generate_wba_prior <- function(stan_data, participant_id, n_draws = 500) {
     mutate(ID = participant_id)
 }
 ```
-
-# ── Generate predictions ──────────────────────────────────────────────────────
+# ── Generate predictions (run once) ───────────────────────────────────────────
 ```{r}
 make_stan_data <- function(id) {
   participant_data <- transformed_data %>% filter(ID == id)
@@ -187,30 +153,126 @@ pba_post_ppc <- imap_dfr(pba_draws_list, function(draws, id)
 wba_post_ppc <- imap_dfr(wba_draws_list, function(draws, id)
   extract_predictive_data(draws, make_stan_data(id), participant_id = id))
 ```
-
-# ── Plot ──────────────────────────────────────────────────────────────────────
+# ── Plot (edit rerunning generation) ──────────────────────────────────────────
 ```{r}
-p1 <- plot_predictive_check(pba_prior_ppc,
-  title = "PBA - Prior Predictive Check", subtitle = "Pooled across participants")
-p2 <- plot_predictive_check(pba_post_ppc,
-  title = "PBA - Posterior Predictive Check", subtitle = "Pooled across participants")
-p3 <- plot_predictive_check(wba_prior_ppc,
-  title = "WBA - Prior Predictive Check", subtitle = "Pooled across participants")
-p4 <- plot_predictive_check(wba_post_ppc,
-  title = "WBA - Posterior Predictive Check", subtitle = "Pooled across participants")
+make_ppc_plot <- function(plot_data, title, subtitle) {
+  ggplot(plot_data,
+         aes(x = first_rating + 1, colour = factor(group_rating + 1),
+             fill = factor(group_rating + 1))) +
+    geom_linerange(aes(ymin = lower + 1, ymax = upper + 1),
+                   position = position_dodge(width = 0.6),
+                   alpha = 0.5, linewidth = 2) +
+    geom_line(aes(y = mean_pred + 1),
+              position = position_dodge(width = 0.6),
+              linewidth = 1) +
+    geom_point(aes(y = mean_obs + 1),
+               shape = 21, colour = "black", stroke = 0.8, size = 2,
+               position = position_dodge(width = 0.6)) +
+    scale_x_continuous(breaks = 1:8, limits = c(1, 8)) +
+    scale_y_continuous(breaks = 1:8, limits = c(0, 10)) +
+    labs(title = title, subtitle = subtitle,
+         x = "First Rating", y = "Mean Second Rating",
+         colour = "Group Rating", fill = "Group Rating") +
+    theme_bw() +
+    theme(
+      legend.position  = "bottom",
+      legend.text      = element_text(size = 7),
+      legend.title     = element_text(size = 8),
+      legend.key.size  = unit(0.4, "cm")
+    )
+}
 
-(p1 | p2) / (p3 | p4) +
-  plot_layout(guides = "collect") &
-  theme(legend.position = "bottom")
+p1 <- make_ppc_plot(pba_prior_ppc,  "PBA - Prior Predictive Check",     "Pooled across participants")
+p2 <- make_ppc_plot(pba_post_ppc,   "PBA - Posterior Predictive Check", "Pooled across participants")
+p3 <- make_ppc_plot(wba_prior_ppc,  "WBA - Prior Predictive Check",     "Pooled across participants")
+p4 <- make_ppc_plot(wba_post_ppc,   "WBA - Posterior Predictive Check", "Pooled across participants")
 ```
+# ── Individual plots ──────────────────────────────────────────────────────────
 ```{r}
 p1
-
 p2
-
 p3
-
 p4
+```
+# ── Refine and combine ────────────────────────────────────────────────────────
+```{r}
+make_combined_plot <- function(plot_data, title) {
+  
+  plot_data <- plot_data %>%
+  mutate(check = factor(check, levels = c("Prior", "Posterior")))
+  
+  ggplot(plot_data,
+         aes(x = first_rating + 1, 
+             group = interaction(factor(group_rating + 1), check),
+             colour = check, fill = check)) +
+    geom_linerange(aes(ymin = lower + 1, ymax = upper + 1),
+                   position = position_dodge(width = 0.6),
+                   alpha = 0.15, linewidth = 2) +
+    geom_line(aes(y = mean_pred + 1, linetype = check),
+              position = position_dodge(width = 0.6),
+              alpha = 0.6, linewidth = 0.6) +
+    scale_colour_manual(values = c("Prior" = "#c97b6e", "Posterior" = "#6e8fc9")) +
+    scale_fill_manual(values   = c("Prior" = "#a86868", "Posterior" = "#5870a8")) +
+    scale_linetype_manual(values = c("Prior" = "dashed", "Posterior" = "solid")) +
+    scale_x_continuous(breaks = 1:8, limits = c(0.5, 8.5)) +
+    scale_y_continuous(breaks = 1:8, limits = c(1, 8)) +
+    labs(title   = NULL,
+         x       = "First Rating",
+         y       = "Mean Second Rating",
+         colour  = NULL,
+         fill    = NULL,
+         linetype = NULL) +
+    theme_classic() +
+    theme(
+      legend.position = "bottom",
+      legend.text     = element_text(size =6)
+    )
+}
+
+p_pba <- make_combined_plot(pba_combined, "PBA - Prior vs Posterior Predictive Check")
+p_wba <- make_combined_plot(wba_combined, "WBA - Prior vs Posterior Predictive Check")
+
+p_pba
+p_wba
+```
+# ── Numerical analysis ────────────────────────────────────────────────────────
+```{r}
+pba_combined %>% 
+  summarise(min_lower = min(lower + 1), max_upper = max(upper + 1))
+```
+
+```{r}
+length(unique(transformed_data$ID))
+
+transformed_data %>% 
+  count(ID) %>% 
+  summarise(min = min(n), max = max(n), mean = mean(n))
+```
+
+```{r}
+pba_combined %>%
+  group_by(check) %>%
+  summarise(mean_width = mean(upper - lower))
+```
+
+```{r}
+pba_combined %>%
+  group_by(check) %>%
+  summarise(coverage = mean(mean_obs >= lower & mean_obs <= upper))
+```
+```{r}
+pba_combined %>%
+  group_by(check) %>%
+  summarise(mae = mean(abs(mean_pred - mean_obs)))
+```
+
+```{r}
+bind_rows(
+  pba_post_ppc %>% mutate(model = "PBA"),
+  wba_post_ppc %>% mutate(model = "WBA")
+) %>%
+  group_by(model) %>%
+  summarise(mae = mean(abs(mean_pred - mean_obs)))
 ```
 
 
