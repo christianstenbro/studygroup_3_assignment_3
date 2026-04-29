@@ -1,0 +1,165 @@
+---
+title: "real_data_model_comp"
+output: html_document
+---
+
+This markdown runs pairwise LOO model comparison (PBA vs WBA) for each participant.
+
+```{r}
+pacman::p_load(cmdstanr, tidyverse, posterior, loo, here)
+```
+
+```{r}
+#load in draws
+pba_draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
+wba_draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
+
+participant_ids <- names(pba_draws_list)
+
+```
+
+```{r}
+# funct for extracting log_lik matrix (S x N) from a draws_df
+extract_log_lik_matrix <- function(draws_df) {
+  ll_cols <- grep("^log_lik\\[", names(draws_df), value = TRUE)
+  idx     <- order(as.integer(gsub(".*\\[(\\d+)\\]", "\\1", ll_cols)))
+  as.matrix(draws_df[, ll_cols[idx]])
+}
+```
+
+```{r warning=FALSE} 
+
+#disable warnings for loo compute
+
+#empty list for storage
+model_comparison_list <- list()
+
+
+#loop over ids
+for (id in participant_ids) {
+
+  #print status
+  cat("Participant", id, "\n")
+
+  #get ll matrices
+  pba_ll <- extract_log_lik_matrix(pba_draws_list[[id]])
+  wba_ll <- extract_log_lik_matrix(wba_draws_list[[id]])
+
+  #make loo computation
+  pba_loo <- loo(pba_ll, cores = 1)
+  wba_loo <- loo(wba_ll, cores = 1)
+
+  #prep list for to feed
+  loo_list   <- list(PBA = pba_loo, WBA = wba_loo)
+  
+  #make comparison and stacking weights
+  comparison <- loo_compare(loo_list)
+  weights    <- loo_model_weights(loo_list)
+  
+  
+  #store comparison
+  model_comparison_list[[id]] <- list(
+    id         = id,
+    comparison = comparison,
+    weights    = weights,
+    pba_loo    = pba_loo,
+    wba_loo    = wba_loo
+  )
+}
+```
+Make dataframe of all comparsons
+```{r}
+# Build per-participant summary df for each partipant
+summary_rows <- lapply(model_comparison_list, function(res) {
+ 
+   #apply function to list
+  
+  comp <- res$comparison
+  w    <- res$weights
+
+  data.frame(
+    ID              = res$id,
+    PBA_elpd        = round(res$pba_loo$estimates["elpd_loo", "Estimate"], 2),
+    PBA_elpd_se     = round(res$pba_loo$estimates["elpd_loo", "SE"],       2),
+    WBA_elpd        = round(res$wba_loo$estimates["elpd_loo", "Estimate"], 2),
+    WBA_elpd_se     = round(res$wba_loo$estimates["elpd_loo", "SE"],       2),
+    elpd_diff       = round(comp[2, "elpd_diff"], 2),
+    se_diff         = round(comp[2, "se_diff"],   2),
+    winner          = rownames(comp)[1],
+    PBA_stacking_w  = round(as.numeric(w["PBA"]), 3),
+    WBA_stacking_w  = round(as.numeric(w["WBA"]), 3),
+    
+    
+    stringsAsFactors = FALSE
+  )
+})
+
+#bind rows of all dfs
+per_participant_df <- bind_rows(summary_rows)
+
+#write to csv
+write_csv(per_participant_df, here("real_data_model_comparison_summary.csv"))
+```
+
+```{r}
+param_rows <- lapply(participant_ids, function(id) {
+  p_mean     <- mean(pba_draws_list[[id]]$p)
+  rho_mean   <- mean(wba_draws_list[[id]]$rho)
+  kappa_mean <- mean(wba_draws_list[[id]]$kappa)
+  data.frame(ID = as.numeric(id), p = round(p_mean, 3), rho = round(rho_mean, 3), kappa = round(kappa_mean, 3))
+})
+
+params_df <- bind_rows(param_rows) %>%
+  left_join(per_participant_df %>% select(ID, PBA_stacking_w, WBA_stacking_w, winner) %>% mutate(ID = as.numeric(ID)), by = "ID")
+
+write_csv(params_df, here("participant_params_and_weights.csv"))
+```
+
+
+## Plots
+
+```{r}
+id_order <- per_participant_df %>% arrange(elpd_diff) %>% pull(ID)
+
+ggplot(per_participant_df, aes(x = factor(ID, levels = id_order), y = elpd_diff)) +
+  geom_col(aes(fill = ifelse(winner == "PBA", "WBA", "PBA"))) +
+  geom_errorbar(aes(ymin = elpd_diff - se_diff, ymax = elpd_diff + se_diff), width = 0.3) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  labs(x = "Participant", y = "ELPD Diff", fill = "Worse Model") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+```
+
+```{r}
+weights_long <- per_participant_df %>%
+  select(ID, PBA_stacking_w, WBA_stacking_w) %>%
+  pivot_longer(cols = c(PBA_stacking_w, WBA_stacking_w),
+               names_to = "Model", values_to = "Stacking_weight") %>%
+  mutate(Model = recode(Model, PBA_stacking_w = "PBA", WBA_stacking_w = "WBA"))
+
+ggplot(weights_long, aes(x = factor(ID, levels = id_order), y = Stacking_weight, fill = Model)) +
+  geom_col(position = "stack") +
+  labs(x = "Participant", y = "Stacking weight") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+```
+
+```{r}
+ggplot(params_df, aes(x = reorder(ID, kappa), y = kappa, fill = winner)) +
+  geom_col() +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  labs(x = "Participant", y = "Estimated kappa", fill = "Favored model") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+```
+
+```{r}
+ggplot(params_df, aes(x = kappa, y = WBA_stacking_w)) +
+  geom_point() +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
+  labs(x = "Estimated kappa", y = "WBA stacking weight") +
+  theme_minimal()
+```
