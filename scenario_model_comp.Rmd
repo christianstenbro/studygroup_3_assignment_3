@@ -114,28 +114,6 @@ for (res in model_comparison_list) {
 }
 ```
 
-```{r}
-# Append real-data fit comparison
-pba_data_loo <- readRDS("models_fit_to_data/pba_data_model.rds")$loo()
-wba_data_loo <- readRDS("models_fit_to_data/wba_data_model.rds")$loo()
-
-data_loo_list   <- list(PBA = pba_data_loo, WBA = wba_data_loo)
-data_comparison <- loo_compare(data_loo_list)
-data_weights    <- loo_model_weights(data_loo_list)
-
-all_plot_df[["real_data"]] <- data.frame(
-  Scenario  = "Real data",
-  Model     = rownames(data_comparison),
-  elpd_diff = data_comparison[, "elpd_diff"],
-  se_diff   = data_comparison[, "se_diff"]
-)
-
-all_weights_df[["real_data"]] <- data.frame(
-  Scenario        = "Real data",
-  Model           = names(data_weights),
-  Stacking_weight = as.numeric(data_weights)
-)
-```
 
 ## Simulated scenarios
 
@@ -143,12 +121,16 @@ all_weights_df[["real_data"]] <- data.frame(
 scenario_plot_df    <- bind_rows(all_plot_df[names(all_plot_df) != "real_data"])
 scenario_weights_df <- bind_rows(all_weights_df[names(all_weights_df) != "real_data"])
 
-ggplot(scenario_weights_df, aes(x = Model, y = Stacking_weight, fill = Model)) +
-  geom_col() +
-  facet_wrap(~ Scenario) +
-  labs(y = "Stacking weight", x = "Model") +
+scenario_weights_long <- scenario_weights_df %>%
+  pivot_wider(names_from = Model, values_from = Stacking_weight) %>%
+  pivot_longer(cols = c(PBA, WBA), names_to = "Model", values_to = "Stacking_weight")
+
+ggplot(scenario_weights_long, aes(x = reorder(Scenario, as.integer(gsub("Scenario ", "", Scenario))), y = Stacking_weight, fill = Model)) +
+  geom_col(position = "stack") +
+  labs(x = "Scenario", y = "Stacking weight") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
 
 ggplot(scenario_plot_df, aes(x = Model, y = elpd_diff, color = Model)) +
   geom_point(size = 4) +
@@ -158,28 +140,22 @@ ggplot(scenario_plot_df, aes(x = Model, y = elpd_diff, color = Model)) +
   labs(y = "ELPD diff", x = "Model") +
   theme_minimal() +
   theme(legend.position = "none")
-```
 
-## Real data
+scenario_loser_df <- scenario_plot_df %>%
+  filter(elpd_diff != 0) %>%
+  mutate(winner = ifelse(Model == "PBA", "WBA", "PBA"))
 
-```{r}
-real_plot_df    <- all_plot_df[["real_data"]]
-real_weights_df <- all_weights_df[["real_data"]]
-
-ggplot(real_weights_df, aes(x = Model, y = Stacking_weight, fill = Model)) +
-  geom_col() +
-  labs(y = "Stacking weight", x = "Model") +
-  theme_minimal() +
-  theme(legend.position = "none")
-
-ggplot(real_plot_df, aes(x = Model, y = elpd_diff, color = Model)) +
-  geom_point(size = 4) +
-  geom_errorbar(aes(ymin = elpd_diff - se_diff, ymax = elpd_diff + se_diff), width = 0.15, linewidth = 0.8) +
+ggplot(scenario_loser_df, aes(x = reorder(Scenario, as.integer(gsub("Scenario ", "", Scenario))), y = elpd_diff)) +
+  geom_col(aes(fill = winner)) +
+  geom_errorbar(aes(ymin = elpd_diff - se_diff, ymax = elpd_diff + se_diff), width = 0.3) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
-  labs(y = "ELPD diff", x = "Model") +
+  labs(x = "Scenario", y = "ELPD Diff", fill = "Worse Model") +
   theme_minimal() +
-  theme(legend.position = "none")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
 ```
+
+
 
 ```{r}
 problematic_ids <- pareto_k_ids(pba_loo) 
@@ -193,8 +169,14 @@ scen_3 <- scen_3 %>%
 
 scen_3$pareto_k_vals <- pareto_k_vals
 
+
+ggplot(scen_3, aes(x = first_ratings, y = group_ratings, color = if_else(pareto_k_vals == Inf, T, F))) +
+  geom_jitter(width = .15, height = .15) +
+  geom_abline(linetype = "dashed") +
+  theme_minimal()
+
 ggplot(scen_3, aes(x = first_ratings, y = group_ratings, color = problematic_pareto)) +
-  geom_jitter() +
+    geom_jitter(width = .15, height = .15) +
   geom_abline(linetype = "dashed") +
   theme_minimal()
 
