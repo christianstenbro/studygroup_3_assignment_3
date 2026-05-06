@@ -6,7 +6,7 @@ output: html_document
 # set-up
 
 ```{r}
-pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot)
+pacman::p_load(here, cmdstanr, tidyverse, posterior, bayesplot, ggplot2, patchwork)
 ```
 
 ```{r}
@@ -217,4 +217,112 @@ for (id in selected_ids) {
 ```
 
 
+
+```{r}
+# Extract all posterior draws for wfirst and wgroup
+draws_list <- readRDS(here("models_fit_to_data", "wba_empirical_draws.rds"))
+all_ids <- names(draws_list)
+
+posterior_df <- map_dfr(all_ids, function(id) {
+  draws <- draws_list[[id]]
+  tibble(
+    id       = id,
+    w_first  = draws$w_first,
+    w_group  = draws$w_group
+  )
+})
+
+# Color palette — one color per participant
+n_ids <- length(all_ids)
+colors <- rainbow(n_ids)
+names(colors) <- all_ids
+
+# Plot wfirst
+p_all_wfirst <- ggplot(posterior_df, aes(x = w_first, color = id)) +
+  geom_density(linewidth = 0.2, alpha = 0.8) +
+  scale_color_manual(values = colors, guide = "none") +
+  xlim(0, 5) +
+  ylim(0, 15) +
+  labs(
+    x     = "w_first",
+    y     = "Density",
+    color = "Participant"
+  ) +
+  theme_minimal()
+    
+
+# Plot wgroup
+p_all_wgroup <- ggplot(posterior_df, aes(x = w_group, color = id)) +
+  geom_density(linewidth = 0.2, alpha = 0.8) +
+  scale_color_manual(values = colors, guide = "none") +
+  xlim(0, 5) +
+  ylim(0, 15) +
+  labs(
+    x     = "w_group",
+    y     = "Density",
+  ) +
+  theme_minimal()
+    
+print(
+    (p_all_wfirst | p_all_wgroup) +
+      plot_annotation(
+        title = paste("WBA - Posterior Density: all participants"),
+        theme = theme(plot.title = element_text(size = 14, face = "bold"))
+      ))
+```
+
+
+```{r}
+# Extract all posterior draws for wfirst and wgroup
+draws_list <- readRDS(here("models_fit_to_data", "pba_empirical_draws.rds"))
+all_ids <- names(draws_list)
+
+posterior_df <- map_dfr(all_ids, function(id) {
+  draws <- draws_list[[id]]
+  tibble(
+    id       = id,
+    w_first  = draws$w_first,
+    w_group  = draws$w_group
+  )
+})
+
+# Color palette — one color per participant
+n_ids <- length(all_ids)
+colors <- rainbow(n_ids)
+names(colors) <- all_ids
+
+# Plot wfirst
+p_all_wfirst <- ggplot(posterior_df, aes(x = w_first, color = id)) +
+  geom_density(linewidth = 0.2, alpha = 0.8) +
+  scale_color_manual(values = colors, guide = "none") +
+  xlim(0, 1) +
+  ylim(0, 10) +
+  labs(
+    x     = "w_first",
+    y     = "Density",
+    color = "Participant"
+  ) +
+  theme_minimal()
+    
+
+# Plot wgroup
+p_all_wgroup <- ggplot(posterior_df, aes(x = w_group, color = id)) +
+  geom_density(linewidth = 0.2, alpha = 0.8) +
+  scale_color_manual(values = colors, guide = "none") +
+  xlim(0, 1) +
+  ylim(0, 10) +
+  labs(
+    x     = "w_group",
+    y     = "Density",
+  ) +
+  theme_minimal()
+    
+print(
+    (p_all_wfirst | p_all_wgroup) +
+      plot_annotation(
+        title = paste("PBA - Posterior Density: all participants"),
+        theme = theme(plot.title = element_text(size = 14, face = "bold"))
+      ))
+
+```
 
