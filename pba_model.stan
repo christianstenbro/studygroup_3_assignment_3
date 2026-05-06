@@ -36,7 +36,7 @@ transformed parameters {
 
 model {
   
-  target += beta_lpdf(p | 1, 1); 
+  target += beta_lpdf(p | 5, 5); 
 
 
   // Defining likelihood functions
